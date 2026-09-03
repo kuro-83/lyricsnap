@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1">
+  <meta name="description" content="YouTubeのスクリーンショットから歌詞を自動検索するWebアプリ">
+  <meta name="theme-color" content="#0f0d2e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="LyricSnap">
+
+  <title>LyricSnap — YouTube歌詞検索</title>
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tesseract.js -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- ========================================
+         Header
+    ======================================== -->
+    <header id="app-header">
+      <div class="header-inner">
+        <div class="logo" id="logo-home">
+          <span class="logo-icon">♪</span>
+          <h1 class="logo-text">LyricSnap</h1>
+        </div>
+        <button id="btn-history" class="header-btn" aria-label="保存した歌詞の履歴">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ========================================
+         Screen 1: Upload (Initial)
+    ======================================== -->
+    <main>
+      <section id="screen-upload" class="screen active">
+        <div class="upload-container">
+          <!-- Drop Zone -->
+          <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="画像をアップロード">
+            <div class="drop-zone-inner">
+              <div class="drop-zone-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+              </div>
+              <p class="drop-zone-title">スクリーンショットをアップロード</p>
+              <p class="drop-zone-subtitle">タップして選択 または ドラッグ＆ドロップ</p>
+            </div>
+            <input type="file" id="file-input" accept="image/*" hidden>
+          </div>
+
+          <!-- Paste Hint -->
+          <div class="paste-hint">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+            </svg>
+            <span>Ctrl+V / ⌘V で画像ペーストも可能</span>
+          </div>
+
+          <!-- Divider -->
+          <div class="divider">
+            <span>または</span>
+          </div>
+
+          <!-- Manual Search -->
+          <div class="manual-search">
+            <div class="search-input-group">
+              <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input type="text" id="manual-search-input" class="search-input" placeholder="曲名やアーティスト名で検索...">
+              <button id="btn-manual-search" class="btn-search" aria-label="検索">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                  <polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================
+           Screen 2: OCR Processing
+      ======================================== -->
+      <section id="screen-processing" class="screen">
+        <div class="processing-container">
+          <div class="preview-image-wrapper">
+            <img id="preview-image" src="" alt="アップロードされた画像" class="preview-image">
+          </div>
+          <div class="processing-info">
+            <div class="processing-spinner">
+              <div class="spinner-ring"></div>
+            </div>
+            <p id="processing-status" class="processing-status">画像を解析中...</p>
+            <div class="progress-bar-wrapper">
+              <div id="progress-bar" class="progress-bar">
+                <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+              </div>
+              <span id="progress-text" class="progress-text">0%</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================
+           Screen 3: Title Detected / Search
+      ======================================== -->
+      <section id="screen-search" class="screen">
+        <div class="search-container">
+          <div class="detected-title-card glass-card">
+            <p class="detected-label">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              タイトルを検出しました
+            </p>
+            <div class="search-edit-group">
+              <input type="text" id="detected-title-input" class="detected-title-input" placeholder="検出されたタイトル">
+              <button id="btn-search-lyrics" class="btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                歌詞を検索
+              </button>
+            </div>
+          </div>
+
+          <!-- Searching Indicator -->
+          <div id="searching-indicator" class="searching-indicator" hidden>
+            <div class="searching-dots">
+              <span></span><span></span><span></span>
+            </div>
+            <p>歌詞を検索しています...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================
+           Screen 4: Lyrics Display
+      ======================================== -->
+      <section id="screen-lyrics" class="screen">
+        <div class="lyrics-container">
+          <div class="lyrics-header">
+            <div class="lyrics-title-info">
+              <h2 id="lyrics-song-title" class="lyrics-song-title">曲名</h2>
+              <p id="lyrics-artist-name" class="lyrics-artist-name">アーティスト</p>
+            </div>
+            <span id="lyrics-source-badge" class="source-badge">API</span>
+          </div>
+          <!-- 文字サイズ調整バー -->
+          <div class="font-size-control">
+            <button id="btn-font-smaller" class="btn-font-adj" aria-label="文字を小さく">A<sup>−</sup></button>
+            <span id="font-size-label" class="font-size-label">15px</span>
+            <button id="btn-font-larger" class="btn-font-adj" aria-label="文字を大きく">A<sup>+</sup></button>
+            <button id="btn-font-reset" class="btn-font-reset" aria-label="文字サイズをリセット">リセット</button>
+          </div>
+          <div id="lyrics-content" class="lyrics-content glass-card">
+            <div id="lyrics-text" class="lyrics-text"></div>
+          </div>
+          <div class="lyrics-actions">
+            <button id="btn-save-lyrics" class="btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              保存する
+            </button>
+            <button id="btn-edit-lyrics" class="btn-secondary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              編集
+            </button>
+            <button id="btn-new-search" class="btn-secondary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1 4 1 10 7 10"/>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+              </svg>
+              新しい画像
+            </button>
+            <a id="btn-google-search-lyrics" href="#" target="_blank" rel="noopener noreferrer" class="btn-google-search">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              Googleで歌詞を検索
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================
+           Screen 5: Lyrics Not Found / Manual Input
+      ======================================== -->
+      <section id="screen-not-found" class="screen">
+        <div class="not-found-container">
+          <div class="not-found-banner">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>歌詞が見つかりませんでした</span>
+          </div>
+          <h2 id="not-found-title" class="not-found-title">曲名</h2>
+          <p class="not-found-desc">手動で歌詞を入力して保存できます。次回から自動で表示されます。</p>
+          <div class="manual-input-wrapper glass-card">
+            <textarea id="manual-lyrics-input" class="manual-lyrics-textarea" rows="12" placeholder="歌詞を入力してください..."></textarea>
+          </div>
+          <div class="manual-input-actions">
+            <button id="btn-save-manual" class="btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              保存
+            </button>
+            <a id="btn-google-search-notfound" href="#" target="_blank" rel="noopener noreferrer" class="btn-google-search">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              Googleで歌詞を検索
+            </a>
+            <button id="btn-cancel-manual" class="btn-secondary">キャンセル</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================
+           Screen 6: History
+      ======================================== -->
+      <section id="screen-history" class="screen">
+        <div class="history-container">
+          <div class="history-header">
+            <h2 class="history-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 8v4l3 3"/>
+                <circle cx="12" cy="12" r="10"/>
+              </svg>
+              保存した歌詞
+            </h2>
+            <button id="btn-back-from-history" class="btn-icon" aria-label="戻る">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Empty State -->
+          <div id="history-empty" class="history-empty">
+            <div class="empty-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+            </div>
+            <p>保存された歌詞はまだありません</p>
+            <p class="empty-sub">スクリーンショットから歌詞を検索して保存しましょう</p>
+          </div>
+
+          <!-- History List -->
+          <div id="history-list" class="history-list"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ========================================
+         Toast Notification
+    ======================================== -->
+    <div id="toast" class="toast" role="alert" aria-live="polite" hidden>
+      <span id="toast-message"></span>
+    </div>
+  </div>
+
+  <!-- App Scripts -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>

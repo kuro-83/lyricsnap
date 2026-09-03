@@ -1,0 +1,11 @@
+# プロジェクト運用ルールにより非公開
+開発日記/
+claude-code-report.md
+Claude outputs/
+
+# macOS
+.DS_Store
+
+# エディタ・OS系
+*.log
+.vscode/
