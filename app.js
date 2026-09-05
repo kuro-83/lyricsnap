@@ -9,6 +9,8 @@ import { searchMusic } from './modules/musicSearch.js';
 import { searchLyrics } from './modules/lyrics.js';
 import {
   recordView,
+  findExisting,
+  touchView,
   getHistory,
   suggestFromHistory,
   getHistoryById,
@@ -227,6 +229,27 @@ async function pickMusicCandidate(m) {
     { source: '' }
   );
 
+  // 0. まず自分の履歴に保存済みか確認。あれば外部APIを呼ばず保存済み歌詞を表示する。
+  //    （外部APIヒット曲・手動貼り付け曲のどちらも、2回目以降は必ず保存済みを再利用）
+  let existing = null;
+  try {
+    existing = await findExisting(m.title, m.artist);
+  } catch (e) {
+    console.warn('findExisting failed', e);
+  }
+  if (existing && (existing.lyrics || '').trim()) {
+    current = { ...existing, saved: true };
+    displayLyrics(current, { saved: true });
+    try {
+      const updated = await touchView(existing);
+      if (updated) current = { ...updated, saved: true };
+    } catch (e) {
+      console.warn('touchView failed', e);
+    }
+    return;
+  }
+
+  // 1. 未保存 or 歌詞が空 → 従来通り外部歌詞APIを検索
   let result = null;
   try {
     result = await searchLyrics(m.title, m.artist);
@@ -268,15 +291,10 @@ async function openHistoryRecord(rec) {
   displayLyrics(current, { saved: true });
   showScreen('lyrics');
   try {
-    const updated = await recordView({
-      title: rec.title,
-      artist: rec.artist,
-      lyrics: rec.lyrics,
-      artwork_url: rec.artwork_url,
-    });
+    const updated = await touchView(rec);
     if (updated) current = { ...updated, saved: true };
   } catch (e) {
-    console.warn('recordView failed', e);
+    console.warn('touchView failed', e);
   }
 }
 

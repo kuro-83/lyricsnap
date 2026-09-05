@@ -143,6 +143,50 @@ export async function suggestFromHistory(q) {
   return data || [];
 }
 
+/**
+ * 確定した「曲名＋アーティスト」に一致する自分の既存レコードを1件返す。
+ * （recordView() と同じ一致基準: 大文字小文字を無視した完全一致）
+ * @param {string} title
+ * @param {string} artist
+ * @returns {Promise<object|null>}
+ */
+export async function findExisting(title, artist) {
+  const user_id = getUserId();
+  if (!supabase || !user_id) return null;
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('user_id', user_id)
+    .ilike('title', (title || '').trim())
+    .ilike('artist', (artist || '').trim())
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.warn('findExisting failed', error);
+    return null;
+  }
+  return data;
+}
+
+/**
+ * 既存レコードの閲覧回数を +1 し last_viewed_at を更新する（新規作成しない）
+ * @param {object} rec - 対象の履歴レコード（id, view_count を含む）
+ * @returns {Promise<object>}
+ */
+export async function touchView(rec) {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update({
+      view_count: (rec.view_count || 1) + 1,
+      last_viewed_at: new Date().toISOString(),
+    })
+    .eq('id', rec.id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 /** id で 1 件取得 */
 export async function getHistoryById(id) {
   const user_id = getUserId();
