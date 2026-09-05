@@ -1,7 +1,7 @@
 {
   "name": "LyricSnap",
   "short_name": "LyricSnap",
-  "description": "YouTubeのスクリーンショットから歌詞を自動検索するWebアプリ",
+  "description": "曲を検索して歌詞を表示し、履歴をクラウドに保存する歌詞ビューア。カラオケの選曲にも使えます。",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#0f0d2e",

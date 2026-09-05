@@ -98,6 +98,11 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* hidden 属性は常に優先（display 指定を持つ要素にも効かせる） */
+[hidden] {
+  display: none !important;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--bg-primary);
@@ -822,6 +827,13 @@ rt {
   gap: var(--space-sm);
 }
 
+.lyrics-actions .btn-secondary,
+.lyrics-actions .btn-google-search {
+  flex: 1 1 calc(50% - var(--space-sm));
+  min-width: 130px;
+  white-space: nowrap;
+}
+
 /* ================================================
    SCREEN 5: Not Found / Manual Input
    ================================================ */
@@ -1241,4 +1253,411 @@ rt {
     border-color: rgba(192, 132, 252, 0.25);
     box-shadow: none;
   }
+}
+
+/* ================================================
+   v2 — Auth / Candidate search / Cloud history
+   ================================================ */
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+/* ---- Auth screen ---- */
+.auth-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xl);
+  text-align: center;
+  padding-top: var(--space-3xl);
+}
+
+.auth-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.auth-logo-icon {
+  font-size: 3rem;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 16px rgba(192, 132, 252, 0.4));
+}
+
+.auth-title {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
+}
+
+.auth-desc {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.btn-google-signin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-xl);
+  height: 52px;
+  background: #fff;
+  color: #1f1f1f;
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.btn-google-signin:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn-google-signin:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn-google-signin:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-config-warning {
+  max-width: 340px;
+  font-size: var(--font-size-xs);
+  color: var(--color-warning);
+  line-height: 1.7;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+
+.auth-config-warning code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* ---- Home / candidate search ---- */
+.home-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding-top: var(--space-xl);
+}
+
+.btn-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.btn-clear:hover {
+  background: var(--glass-bg-hover);
+  color: var(--text-primary);
+}
+
+.candidate-loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-lg) 0;
+}
+
+.candidate-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.candidate-group-label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding-left: var(--space-xs);
+}
+
+.candidate-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.candidate-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  text-align: left;
+  transition: all var(--duration-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.candidate-item:hover {
+  background: var(--glass-bg-hover);
+  border-color: rgba(192, 132, 252, 0.25);
+}
+
+.candidate-item:active {
+  transform: scale(0.985);
+}
+
+.candidate-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gradient-primary-soft);
+  color: var(--text-gradient-mid);
+  font-size: 1.1rem;
+}
+
+.candidate-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.candidate-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.candidate-title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.candidate-artist {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.candidate-tag {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-success);
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid rgba(52, 211, 153, 0.2);
+  border-radius: var(--radius-full);
+  padding: 2px 8px;
+}
+
+.home-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+.home-empty p {
+  font-size: var(--font-size-sm);
+}
+
+/* ---- Song (title/artist) edit form ---- */
+.song-edit-form {
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.song-edit-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+.song-edit-input {
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+}
+
+.song-edit-input:focus {
+  border-color: rgba(192, 132, 252, 0.4);
+}
+
+.song-edit-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+/* ---- History controls ---- */
+.history-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.search-input-group.compact {
+  padding: 2px var(--space-md);
+}
+
+.history-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.sort-group {
+  display: flex;
+  gap: var(--space-xs);
+  margin-left: auto;
+}
+
+.chip {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-full);
+  padding: 6px 12px;
+  transition: all var(--duration-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chip:hover {
+  background: var(--glass-bg-hover);
+  color: var(--text-primary);
+}
+
+.chip.active {
+  background: var(--gradient-primary-soft);
+  border-color: rgba(192, 132, 252, 0.4);
+  color: var(--text-primary);
+}
+
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  align-self: flex-start;
+  padding: 8px 14px;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.btn-export:hover {
+  background: var(--glass-bg-hover);
+  color: var(--text-primary);
+}
+
+/* ---- History item (extended) ---- */
+.history-item-icon {
+  overflow: hidden;
+}
+
+.history-item-icon.has-art {
+  background: var(--bg-tertiary);
+}
+
+.history-item-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.history-item-artist {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.history-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.history-fav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.history-fav:hover {
+  background: rgba(251, 191, 36, 0.1);
+  color: var(--color-warning);
+}
+
+.history-fav.on {
+  color: #fbbf24;
+}
+
+/* Google sign-in button uses a light surface; keep its focus ring visible */
+.btn-google-signin:focus-visible {
+  outline-offset: 3px;
 }

@@ -3,8 +3,6 @@
 // 複数APIを使った歌詞検索
 // ================================================
 
-import { getSavedLyrics } from './storage.js';
-
 /**
  * YouTubeタイトルからアーティスト名と曲名を分離する
  * @param {string} rawTitle 
@@ -45,23 +43,20 @@ export function parseArtistTitle(rawTitle) {
 }
 
 /**
- * 歌詞を検索する（キャッシュ → LRCLIB → lyrics.ovh の順）
- * @param {string} rawTitle - 検索タイトル
- * @returns {Promise<{ lyrics: string, artist: string, title: string, source: 'saved' | 'lrclib' | 'lyricsovh' } | null>}
+ * 歌詞を検索する（LRCLIB → lyrics.ovh の順。両者を並列で叩き先に成功した方を採用）
+ * @param {string} rawTitle - 曲名（確定済みが望ましい）
+ * @param {string} [knownArtist] - 確定済みのアーティスト名（あれば検索精度が上がる）
+ * @returns {Promise<{ lyrics: string, artist: string, title: string, source: 'lrclib' | 'lyricsovh' } | null>}
  */
-export async function searchLyrics(rawTitle) {
-  // 1. localStorageのキャッシュを確認
-  const saved = getSavedLyrics(rawTitle);
-  if (saved && saved.lyrics) {
-    return {
-      lyrics: saved.lyrics,
-      artist: saved.artist || '',
-      title: saved.title || rawTitle,
-      source: 'saved',
-    };
-  }
-
-  const parsed = parseArtistTitle(rawTitle);
+export async function searchLyrics(rawTitle, knownArtist = '') {
+  // アーティストが確定していればそれを最優先で使う。無ければタイトル文字列から推定。
+  const parsed = knownArtist
+    ? {
+        artist: knownArtist.trim(),
+        title: (rawTitle || '').trim(),
+        query: `${knownArtist.trim()} ${(rawTitle || '').trim()}`.trim(),
+      }
+    : parseArtistTitle(rawTitle);
 
   // 2. LRCLIBとlyrics.ovhを並列で検索し、先に成功した結果を採用
   const promises = [searchLRCLIB(parsed)];

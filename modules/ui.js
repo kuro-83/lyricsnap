@@ -1,22 +1,35 @@
 // ================================================
 // LyricSnap — UI Module
-// 画面遷移、DOM操作、Toast通知の管理
+// 画面遷移、DOM操作、Toast通知、各種レンダリング
 // ================================================
 
 // ---- Screen Management ----
-const screens = ['upload', 'processing', 'search', 'lyrics', 'not-found', 'history'];
-let currentScreen = 'upload';
+const screens = ['auth', 'home', 'lyrics', 'not-found', 'history'];
+let currentScreen = 'auth';
 
 // ---- Font Size State ----
 const FONT_SIZE_MIN = 12;
 const FONT_SIZE_MAX = 28;
 const FONT_SIZE_STEP = 2;
 const FONT_SIZE_DEFAULT = 15;
-let currentFontSize = FONT_SIZE_DEFAULT;
+const FONT_SIZE_KEY = 'lyricsnap_font_size';
+let currentFontSize = loadFontSize();
+
+function loadFontSize() {
+  try {
+    const v = parseInt(localStorage.getItem(FONT_SIZE_KEY), 10);
+    if (v >= FONT_SIZE_MIN && v <= FONT_SIZE_MAX) return v;
+  } catch {
+    /* ignore */
+  }
+  return FONT_SIZE_DEFAULT;
+}
+
+const $ = (id) => document.getElementById(id);
 
 /**
  * 画面を切り替える
- * @param {string} name - 画面名（upload, processing, search, lyrics, not-found, history）
+ * @param {'auth'|'home'|'lyrics'|'not-found'|'history'} name
  */
 export function showScreen(name) {
   if (!screens.includes(name)) {
@@ -25,150 +38,216 @@ export function showScreen(name) {
   }
 
   screens.forEach((s) => {
-    const el = document.getElementById(`screen-${s}`);
-    if (el) {
-      el.classList.remove('active');
-    }
+    const el = $(`screen-${s}`);
+    if (el) el.classList.remove('active');
   });
 
-  const target = document.getElementById(`screen-${name}`);
+  const target = $(`screen-${name}`);
   if (target) {
     target.classList.add('active');
-    // スクロールを先頭に戻す
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
-
   currentScreen = name;
 
-  // 履歴画面では履歴ボタンを非表示、それ以外では表示
-  const historyBtn = document.getElementById('btn-history');
-  if (historyBtn) {
-    historyBtn.style.display = name === 'history' ? 'none' : '';
-  }
+  // ヘッダーのボタン表示制御（サインイン済みかつ auth 画面以外で表示）
+  const signedIn = name !== 'auth';
+  const historyBtn = $('btn-history');
+  const signoutBtn = $('btn-signout');
+  if (historyBtn) historyBtn.hidden = !signedIn || name === 'history';
+  if (signoutBtn) signoutBtn.hidden = !signedIn;
 }
 
-/**
- * 現在のスクリーン名を取得
- * @returns {string}
- */
 export function getCurrentScreen() {
   return currentScreen;
 }
 
-// ---- Progress ----
+// ================================================
+// Auth screen
+// ================================================
+export function showConfigWarning(show) {
+  const el = $('auth-config-warning');
+  const btn = $('btn-google-signin');
+  if (el) el.hidden = !show;
+  if (btn) btn.disabled = show;
+}
 
-/**
- * OCR進捗を更新
- * @param {number} percent - 0〜1
- * @param {string} [message] - ステータスメッセージ
- */
-export function updateProgress(percent, message) {
-  const fill = document.getElementById('progress-fill');
-  const text = document.getElementById('progress-text');
-  const status = document.getElementById('processing-status');
+// ================================================
+// Home: candidate list
+// ================================================
+export function setCandidateLoading(loading) {
+  const el = $('candidate-loading');
+  if (el) el.hidden = !loading;
+}
 
-  const pct = Math.round(percent * 100);
-
-  if (fill) fill.style.width = `${pct}%`;
-  if (text) text.textContent = `${pct}%`;
-  if (status && message) status.textContent = message;
+export function clearCandidates() {
+  ['candidate-history-group', 'candidate-music-group'].forEach((id) => {
+    const g = $(id);
+    if (g) g.hidden = true;
+  });
+  const h = $('candidate-history-list');
+  const m = $('candidate-music-list');
+  if (h) h.innerHTML = '';
+  if (m) m.innerHTML = '';
+  const empty = $('home-empty');
+  if (empty) empty.hidden = false;
 }
 
 /**
- * プレビュー画像を設定
- * @param {string} src - 画像のURL
+ * 候補一覧をレンダリングする
+ * @param {{history: object[], music: import('./musicSearch.js').MusicCandidate[]}} data
+ * @param {{onHistoryPick: (rec: object) => void, onMusicPick: (m: object) => void}} handlers
  */
-export function setPreviewImage(src) {
-  const img = document.getElementById('preview-image');
-  if (img) img.src = src;
+export function renderCandidates(data, handlers) {
+  const { history = [], music = [] } = data;
+  const empty = $('home-empty');
+  const hasAny = history.length > 0 || music.length > 0;
+  if (empty) empty.hidden = hasAny;
+
+  // History group
+  const histGroup = $('candidate-history-group');
+  const histList = $('candidate-history-list');
+  if (histList) {
+    if (history.length) {
+      histList.innerHTML = history
+        .map(
+          (rec) => `
+        <button class="candidate-item" data-id="${escapeAttr(rec.id)}">
+          <span class="candidate-thumb ${rec.artwork_url ? '' : 'placeholder'}">${
+            rec.artwork_url
+              ? `<img src="${escapeAttr(rec.artwork_url)}" alt="" loading="lazy">`
+              : '♪'
+          }</span>
+          <span class="candidate-info">
+            <span class="candidate-title">${escapeHtml(rec.title)}</span>
+            <span class="candidate-artist">${escapeHtml(rec.artist || '不明')}</span>
+          </span>
+          <span class="candidate-tag">履歴</span>
+        </button>`
+        )
+        .join('');
+      histList.querySelectorAll('.candidate-item').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const rec = history.find((r) => String(r.id) === btn.dataset.id);
+          if (rec) handlers.onHistoryPick(rec);
+        });
+      });
+      if (histGroup) histGroup.hidden = false;
+    } else if (histGroup) {
+      histGroup.hidden = true;
+    }
+  }
+
+  // Music group
+  const musicGroup = $('candidate-music-group');
+  const musicList = $('candidate-music-list');
+  if (musicList) {
+    if (music.length) {
+      musicList.innerHTML = music
+        .map(
+          (m, i) => `
+        <button class="candidate-item" data-idx="${i}">
+          <span class="candidate-thumb ${m.artwork ? '' : 'placeholder'}">${
+            m.artwork ? `<img src="${escapeAttr(m.artwork)}" alt="" loading="lazy">` : '♪'
+          }</span>
+          <span class="candidate-info">
+            <span class="candidate-title">${escapeHtml(m.title)}</span>
+            <span class="candidate-artist">${escapeHtml(m.artist)}${
+            m.album ? ` · ${escapeHtml(m.album)}` : ''
+          }</span>
+          </span>
+        </button>`
+        )
+        .join('');
+      musicList.querySelectorAll('.candidate-item').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const m = music[Number(btn.dataset.idx)];
+          if (m) handlers.onMusicPick(m);
+        });
+      });
+      if (musicGroup) musicGroup.hidden = false;
+    } else if (musicGroup) {
+      musicGroup.hidden = true;
+    }
+  }
 }
 
-// ---- Search Screen ----
-
-/**
- * 検出されたタイトルを表示
- * @param {string} title 
- */
-export function setDetectedTitle(title) {
-  const input = document.getElementById('detected-title-input');
-  if (input) input.value = title;
-}
-
-/**
- * 検出されたタイトルを取得
- * @returns {string}
- */
-export function getDetectedTitle() {
-  const input = document.getElementById('detected-title-input');
-  return input ? input.value.trim() : '';
-}
-
-/**
- * 検索インジケーターを表示/非表示
- * @param {boolean} visible 
- */
-export function showSearchingIndicator(visible) {
-  const el = document.getElementById('searching-indicator');
-  if (el) el.hidden = !visible;
-}
-
-// ---- Lyrics Display ----
-
+// ================================================
+// Lyrics Display
+// ================================================
 /**
  * 歌詞を表示する
- * @param {string} title - 曲名
- * @param {string} artist - アーティスト名
- * @param {string} lyrics - 歌詞テキスト
- * @param {'saved' | 'lrclib' | 'lyricsovh'} source - ソース
+ * @param {{title: string, artist: string, lyrics: string}} song
+ * @param {{source?: string, saved?: boolean}} [meta]
  */
-export function displayLyrics(title, artist, lyrics, source) {
-  const songTitle = document.getElementById('lyrics-song-title');
-  const artistName = document.getElementById('lyrics-artist-name');
-  const lyricsText = document.getElementById('lyrics-text');
-  const badge = document.getElementById('lyrics-source-badge');
-  const saveBtn = document.getElementById('btn-save-lyrics');
+export function displayLyrics(song, meta = {}) {
+  const { source = '', saved = false } = meta;
+  const title = song.title || '不明な曲';
+  const artist = song.artist || '';
 
-  if (songTitle) songTitle.textContent = title || '不明な曲';
-  if (artistName) artistName.textContent = artist || '';
+  const songTitle = $('lyrics-song-title');
+  const artistName = $('lyrics-artist-name');
+  const lyricsText = $('lyrics-text');
+  const badge = $('lyrics-source-badge');
 
-  // ルビ変換してinnerHTMLで表示
+  if (songTitle) songTitle.textContent = title;
+  if (artistName) artistName.textContent = artist;
+
   if (lyricsText) {
-    lyricsText.innerHTML = convertRuby(lyrics);
+    lyricsText.innerHTML = convertRuby(song.lyrics || '');
     lyricsText.style.fontSize = `${currentFontSize}px`;
   }
 
   if (badge) {
-    const labels = {
-      saved: '保存済み',
-      lrclib: 'LRCLIB',
-      lyricsovh: 'lyrics.ovh',
-    };
-    badge.textContent = labels[source] || source;
-    badge.className = `source-badge${source === 'saved' ? ' saved' : ''}`;
+    const labels = { lrclib: 'LRCLIB', lyricsovh: 'lyrics.ovh', manual: '手動入力' };
+    if (saved) {
+      badge.textContent = '保存済み';
+      badge.className = 'source-badge saved';
+    } else {
+      badge.textContent = labels[source] || source || 'API';
+      badge.className = 'source-badge';
+    }
   }
 
-  // 保存済みソースなら保存ボタンを非表示
-  if (saveBtn) {
-    saveBtn.style.display = source === 'saved' ? 'none' : '';
-  }
-
-  // Google検索リンクを更新
-  const googleLink = document.getElementById('btn-google-search-lyrics');
+  // 「Googleで歌詞を検索」は未保存のときだけ表示
+  const googleLink = $('btn-google-search-lyrics');
   if (googleLink) {
-    const query = encodeURIComponent(`${title} 歌詞`);
-    googleLink.href = `https://www.google.com/search?q=${query}`;
+    googleLink.hidden = saved;
+    googleLink.href = `https://www.google.com/search?q=${encodeURIComponent(
+      `${title} ${artist} 歌詞`
+    )}`;
   }
 
-  // フォントサイズボタンの状態を更新
+  closeSongEdit();
   updateFontSizeButtons();
 }
 
-// ---- Font Size Control ----
+// ================================================
+// Song (title/artist) edit form
+// ================================================
+export function openSongEdit(song) {
+  const form = $('song-edit-form');
+  const t = $('edit-song-title');
+  const a = $('edit-song-artist');
+  if (t) t.value = song.title || '';
+  if (a) a.value = song.artist || '';
+  if (form) form.hidden = false;
+}
 
-/**
- * 歌詞のフォントサイズを変更する
- * @param {'larger' | 'smaller' | 'reset'} direction
- */
+export function closeSongEdit() {
+  const form = $('song-edit-form');
+  if (form) form.hidden = true;
+}
+
+export function getSongEdit() {
+  return {
+    title: ($('edit-song-title')?.value || '').trim(),
+    artist: ($('edit-song-artist')?.value || '').trim(),
+  };
+}
+
+// ================================================
+// Font Size Control
+// ================================================
 export function changeFontSize(direction) {
   if (direction === 'larger') {
     currentFontSize = Math.min(currentFontSize + FONT_SIZE_STEP, FONT_SIZE_MAX);
@@ -177,206 +256,168 @@ export function changeFontSize(direction) {
   } else {
     currentFontSize = FONT_SIZE_DEFAULT;
   }
-  const lyricsText = document.getElementById('lyrics-text');
+  try {
+    localStorage.setItem(FONT_SIZE_KEY, String(currentFontSize));
+  } catch {
+    /* ignore */
+  }
+  const lyricsText = $('lyrics-text');
   if (lyricsText) lyricsText.style.fontSize = `${currentFontSize}px`;
   updateFontSizeButtons();
 }
 
-/**
- * フォントサイズボタンの有効/無効状態を更新
- */
 function updateFontSizeButtons() {
-  const btnLarger = document.getElementById('btn-font-larger');
-  const btnSmaller = document.getElementById('btn-font-smaller');
-  const label = document.getElementById('font-size-label');
+  const btnLarger = $('btn-font-larger');
+  const btnSmaller = $('btn-font-smaller');
+  const label = $('font-size-label');
   if (btnLarger) btnLarger.disabled = currentFontSize >= FONT_SIZE_MAX;
   if (btnSmaller) btnSmaller.disabled = currentFontSize <= FONT_SIZE_MIN;
   if (label) label.textContent = `${currentFontSize}px`;
 }
 
-// ---- Ruby Conversion ----
-
+// ================================================
+// Not Found / Manual Input
+// ================================================
 /**
- * 歌詞テキストのルビ表記をHTML <ruby> タグに変換する
- * 対応形式:
- *   - 漢字[かな] / 漢字(かな)
- *   - <ruby>漢字<rt>かな</rt></ruby> (そのまま通過)
- * @param {string} text
- * @returns {string} HTML文字列
+ * @param {string} title
+ * @param {{found?: boolean}} [opts] found=true なら「歌詞を編集」モードの文言にする
  */
-function convertRuby(text) {
-  if (!text) return '';
-
-  // ステップ1: 既存の <ruby>...</ruby> を保護してプレースホルダに退避
-  const rubyTags = [];
-  let result = text.replace(/<ruby[\s\S]*?<\/ruby>/gi, (match) => {
-    rubyTags.push(match);
-    return `\x01${rubyTags.length - 1}\x01`;
-  });
-
-  // ステップ2: 残りのテキストをHTMLエスケープ（< > & " のみ）
-  result = result.replace(/[&<>"]/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])
-  );
-
-  // ステップ3: 漢字[ふりがな] パターン（半角角括弧）
-  result = result.replace(
-    /([\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\u3005\u3040-\u309F]+)\[([^\]]{1,20})\]/g,
-    '<ruby>$1<rt>$2</rt></ruby>'
-  );
-
-  // ステップ4: 漢字（ふりがな）パターン — 全角括弧（ひらがな・カタカナのみ）
-  result = result.replace(
-    /([\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\u3005\u3040-\u309F]+)\uff08([\u3040-\u30FF]{1,20})\uff09/g,
-    '<ruby>$1<rt>$2</rt></ruby>'
-  );
-
-  // ステップ5: 漢字(ふりがな)パターン — 半角括弧（ひらがな・カタカナのみ）
-  result = result.replace(
-    /([\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\u3005\u3040-\u309F]+)\(([\u3040-\u30FF]{1,20})\)/g,
-    '<ruby>$1<rt>$2</rt></ruby>'
-  );
-
-  // ステップ6: 漢字 + スペース + ひらがな（2文字以上）パターン
-  //   例: 彩 いろどり → <ruby>彩<rt>いろどり</rt></ruby>
-  //   ひらがな2文字以上に限定することで、助詞（は、が等）や英語単語間スペースを除外
-  result = result.replace(
-    /([\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\u3005][\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\u3005\u3040-\u309F]*)[ \u3000]([\u3040-\u309F]{2,20})(?![\u3040-\u309F])/g,
-    '<ruby>$1<rt>$2</rt></ruby>'
-  );
-
-  // ステップ7: 改行を <br> に変換
-  result = result.replace(/\n/g, '<br>');
-
-  // ステップ8: プレースホルダを元の <ruby> タグに戻す
-  result = result.replace(/\x01(\d+)\x01/g, (_, i) => rubyTags[Number(i)]);
-
-  return result;
-}
-
-// ---- Not Found / Manual Input ----
-
-/**
- * 歌詞未発見画面のタイトルを設定
- * @param {string} title 
- */
-export function setNotFoundTitle(title) {
-  const el = document.getElementById('not-found-title');
+export function setNotFoundTitle(title, opts = {}) {
+  const el = $('not-found-title');
   if (el) el.textContent = title;
 
-  // Google検索リンクを更新
-  const googleLink = document.getElementById('btn-google-search-notfound');
+  const banner = $('not-found-banner-text');
+  if (banner) {
+    banner.textContent = opts.found ? '歌詞を編集しています' : '歌詞が見つかりませんでした';
+  }
+
+  const googleLink = $('btn-google-search-notfound');
   if (googleLink) {
-    const query = encodeURIComponent(`${title} 歌詞`);
-    googleLink.href = `https://www.google.com/search?q=${query}`;
+    googleLink.href = `https://www.google.com/search?q=${encodeURIComponent(`${title} 歌詞`)}`;
   }
 }
 
-/**
- * 手動入力テキストを取得
- * @returns {string}
- */
 export function getManualLyrics() {
-  const el = document.getElementById('manual-lyrics-input');
-  return el ? el.value.trim() : '';
+  return ($('manual-lyrics-input')?.value || '').trim();
 }
 
-/**
- * 手動入力テキストをクリア
- */
+export function setManualLyrics(text) {
+  const el = $('manual-lyrics-input');
+  if (el) el.value = text || '';
+}
+
 export function clearManualLyrics() {
-  const el = document.getElementById('manual-lyrics-input');
-  if (el) el.value = '';
+  setManualLyrics('');
 }
 
-// ---- History ----
-
+// ================================================
+// History list
+// ================================================
 /**
- * 履歴リストをレンダリング
- * @param {Array<{ key: string, title: string, artist: string, savedAt: string }>} items
- * @param {{ onItemClick: (key: string, item: Object) => void, onDeleteClick: (key: string) => void }} handlers
+ * @param {object[]} items
+ * @param {{
+ *   onItemClick: (rec: object) => void,
+ *   onToggleFavorite: (rec: object) => void,
+ *   onDelete: (rec: object) => void
+ * }} handlers
+ * @param {{filtered?: boolean}} [state]
  */
-export function renderHistory(items, handlers) {
-  const list = document.getElementById('history-list');
-  const empty = document.getElementById('history-empty');
-
+export function renderHistory(items, handlers, state = {}) {
+  const list = $('history-list');
+  const empty = $('history-empty');
+  const emptyText = $('history-empty-text');
   if (!list) return;
 
   if (items.length === 0) {
     list.innerHTML = '';
-    if (empty) empty.style.display = '';
+    if (empty) empty.hidden = false;
+    if (emptyText) {
+      emptyText.textContent = state.filtered
+        ? '条件に一致する曲がありません'
+        : 'まだ履歴がありません';
+    }
     return;
   }
-
-  if (empty) empty.style.display = 'none';
+  if (empty) empty.hidden = true;
 
   list.innerHTML = items
     .map(
-      (item) => `
-    <div class="history-item" data-key="${escapeHtml(item.key)}">
-      <div class="history-item-icon">🎵</div>
+      (rec) => `
+    <div class="history-item" data-id="${escapeAttr(rec.id)}">
+      <span class="history-item-icon ${rec.artwork_url ? 'has-art' : ''}">${
+        rec.artwork_url
+          ? `<img src="${escapeAttr(rec.artwork_url)}" alt="" loading="lazy">`
+          : '🎵'
+      }</span>
       <div class="history-item-info">
-        <div class="history-item-title">${escapeHtml(item.title)}</div>
-        <div class="history-item-date">${formatDate(item.savedAt)}</div>
+        <div class="history-item-title">${escapeHtml(rec.title)}</div>
+        <div class="history-item-artist">${escapeHtml(rec.artist || '不明')}</div>
+        <div class="history-item-meta">
+          <span>${formatDate(rec.last_viewed_at || rec.created_at)}</span>
+          <span>·</span>
+          <span>${rec.view_count || 1}回</span>
+        </div>
       </div>
-      <button class="history-item-delete" data-delete-key="${escapeHtml(item.key)}" aria-label="削除">
+      <button class="history-fav ${rec.favorite ? 'on' : ''}" data-fav-id="${escapeAttr(
+        rec.id
+      )}" aria-label="お気に入り" aria-pressed="${rec.favorite ? 'true' : 'false'}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="${
+          rec.favorite ? 'currentColor' : 'none'
+        }" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+      </button>
+      <button class="history-item-delete" data-delete-id="${escapeAttr(
+        rec.id
+      )}" aria-label="削除">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="3 6 5 6 21 6"/>
           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
         </svg>
       </button>
-    </div>
-  `
+    </div>`
     )
     .join('');
 
-  // イベント委譲
   list.onclick = (e) => {
-    const deleteBtn = e.target.closest('[data-delete-key]');
-    if (deleteBtn) {
+    const favBtn = e.target.closest('[data-fav-id]');
+    if (favBtn) {
       e.stopPropagation();
-      handlers.onDeleteClick(deleteBtn.dataset.deleteKey);
+      const rec = items.find((r) => String(r.id) === favBtn.dataset.favId);
+      if (rec) handlers.onToggleFavorite(rec);
       return;
     }
-
+    const delBtn = e.target.closest('[data-delete-id]');
+    if (delBtn) {
+      e.stopPropagation();
+      const rec = items.find((r) => String(r.id) === delBtn.dataset.deleteId);
+      if (rec) handlers.onDelete(rec);
+      return;
+    }
     const item = e.target.closest('.history-item');
     if (item) {
-      const key = item.dataset.key;
-      const found = items.find((i) => i.key === key);
-      if (found) handlers.onItemClick(key, found);
+      const rec = items.find((r) => String(r.id) === item.dataset.id);
+      if (rec) handlers.onItemClick(rec);
     }
   };
 }
 
-// ---- Toast ----
-
+// ================================================
+// Toast
+// ================================================
 let toastTimer = null;
-
-/**
- * トースト通知を表示
- * @param {string} message 
- * @param {number} [duration=2500] - 表示時間（ミリ秒）
- */
 export function showToast(message, duration = 2500) {
-  const toast = document.getElementById('toast');
-  const msg = document.getElementById('toast-message');
-
+  const toast = $('toast');
+  const msg = $('toast-message');
   if (!toast || !msg) return;
 
-  // 既存のトーストをクリア
   if (toastTimer) {
     clearTimeout(toastTimer);
     toast.classList.remove('show');
   }
-
   msg.textContent = message;
   toast.hidden = false;
-
-  // 次フレームでアニメーション開始
-  requestAnimationFrame(() => {
-    toast.classList.add('show');
-  });
-
+  requestAnimationFrame(() => toast.classList.add('show'));
   toastTimer = setTimeout(() => {
     toast.classList.remove('show');
     setTimeout(() => {
@@ -386,24 +427,57 @@ export function showToast(message, duration = 2500) {
   }, duration);
 }
 
-// ---- Utility ----
+// ================================================
+// Ruby Conversion（歌詞のふりがな表記を <ruby> に変換）
+// ================================================
+function convertRuby(text) {
+  if (!text) return '';
 
-/**
- * HTMLエスケープ
- * @param {string} str 
- * @returns {string}
- */
+  const rubyTags = [];
+  let result = text.replace(/<ruby[\s\S]*?<\/ruby>/gi, (match) => {
+    rubyTags.push(match);
+    return `\x01${rubyTags.length - 1}\x01`;
+  });
+
+  result = result.replace(/[&<>"]/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])
+  );
+
+  result = result.replace(
+    /([一-鿿㐀-䶿豈-﫿々぀-ゟ]+)\[([^\]]{1,20})\]/g,
+    '<ruby>$1<rt>$2</rt></ruby>'
+  );
+  result = result.replace(
+    /([一-鿿㐀-䶿豈-﫿々぀-ゟ]+)（([぀-ヿ]{1,20})）/g,
+    '<ruby>$1<rt>$2</rt></ruby>'
+  );
+  result = result.replace(
+    /([一-鿿㐀-䶿豈-﫿々぀-ゟ]+)\(([぀-ヿ]{1,20})\)/g,
+    '<ruby>$1<rt>$2</rt></ruby>'
+  );
+  result = result.replace(
+    /([一-鿿㐀-䶿豈-﫿々][一-鿿㐀-䶿豈-﫿々぀-ゟ]*)[ 　]([぀-ゟ]{2,20})(?![぀-ゟ])/g,
+    '<ruby>$1<rt>$2</rt></ruby>'
+  );
+
+  result = result.replace(/\n/g, '<br>');
+  result = result.replace(/\x01(\d+)\x01/g, (_, i) => rubyTags[Number(i)]);
+  return result;
+}
+
+// ================================================
+// Utility
+// ================================================
 function escapeHtml(str) {
   const div = document.createElement('div');
-  div.textContent = str;
+  div.textContent = str == null ? '' : String(str);
   return div.innerHTML;
 }
 
-/**
- * 日付をフォーマット
- * @param {string} isoString 
- * @returns {string}
- */
+function escapeAttr(str) {
+  return escapeHtml(str).replace(/"/g, '&quot;');
+}
+
 function formatDate(isoString) {
   try {
     const date = new Date(isoString);
@@ -418,11 +492,7 @@ function formatDate(isoString) {
     if (hours < 24) return `${hours}時間前`;
     if (days < 7) return `${days}日前`;
 
-    return date.toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    return date.toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' });
   } catch {
     return '';
   }
