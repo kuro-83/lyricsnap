@@ -12,8 +12,8 @@
 //   - 旧方式: anon key（長い JWT）でも動作します（2026年末まで有効）
 //   参考: https://supabase.com/docs/guides/api/api-keys
 //
-export const SUPABASE_URL = 'https://YOUR_PROJECT_REF.supabase.co';
-export const SUPABASE_PUBLISHABLE_KEY = 'YOUR_PUBLISHABLE_OR_ANON_KEY';
+export const SUPABASE_URL = 'https://gjbczzbhuebauilgysrj.supabase.co';
+export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_ZiQfURhmDPiZyGnzgCLAXA_m-XiryOg';
 
 // Supabase の設定が未入力かどうか（未設定なら UI で案内を出す）
 export const isSupabaseConfigured =
