@@ -235,6 +235,52 @@ export async function deleteHistory(id) {
   if (error) throw error;
 }
 
+// ================================================
+// video_map — 動画ID → history レコードの対応（拡張機能の自動モード用）
+// ================================================
+
+/**
+ * 動画IDに対応する history レコードを返す（無ければ null）
+ * @param {string} videoId
+ * @returns {Promise<object|null>}
+ */
+export async function getVideoMapping(videoId) {
+  const user_id = getUserId();
+  if (!supabase || !user_id || !videoId) return null;
+
+  const { data: map, error } = await supabase
+    .from('video_map')
+    .select('history_id')
+    .eq('user_id', user_id)
+    .eq('video_id', videoId)
+    .maybeSingle();
+  if (error) {
+    console.warn('getVideoMapping failed', error);
+    return null;
+  }
+  if (!map) return null;
+
+  return getHistoryById(map.history_id);
+}
+
+/**
+ * 動画ID → history の対応を保存（既存があれば上書き）
+ * @param {string} videoId
+ * @param {string} historyId
+ */
+export async function saveVideoMapping(videoId, historyId) {
+  const user_id = getUserId();
+  if (!supabase || !user_id || !videoId || !historyId) return;
+
+  const { error } = await supabase
+    .from('video_map')
+    .upsert(
+      { user_id, video_id: videoId, history_id: historyId },
+      { onConflict: 'user_id,video_id' }
+    );
+  if (error) console.warn('saveVideoMapping failed', error);
+}
+
 /**
  * 全履歴を取得してエクスポート用の配列で返す
  * @returns {Promise<object[]>}

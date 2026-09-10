@@ -1661,3 +1661,65 @@ rt {
 .btn-google-signin:focus-visible {
   outline-offset: 3px;
 }
+
+/* ---- 拡張機能 自動モード ---- */
+.auto-banner {
+  position: sticky;
+  top: var(--header-height);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  max-width: var(--max-width);
+  margin: 0 auto;
+  width: 100%;
+  padding: 8px var(--space-lg);
+  background: rgba(192, 132, 252, 0.12);
+  border-bottom: 1px solid rgba(192, 132, 252, 0.25);
+  font-size: var(--font-size-xs);
+  color: var(--text-primary);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.auto-banner-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auto-banner-btn {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-gradient-mid);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-full);
+  padding: 4px 12px;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.auto-banner-btn:hover {
+  background: var(--glass-bg-hover);
+  color: var(--text-primary);
+}
+
+/* 時間同期歌詞（syncedLyrics）表示 */
+.lyrics-text.synced .lyric-line {
+  display: block;
+  padding: 2px 0;
+  color: var(--text-tertiary);
+  transition: color var(--duration-normal) var(--ease-out);
+}
+
+.lyrics-text.synced .lyric-line.active {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.lyrics-text.synced .lyric-line.passed {
+  color: var(--text-secondary);
+}

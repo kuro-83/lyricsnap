@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "LyricSnap 自動モード",
+  "version": "1.0.0",
+  "description": "YouTubeで再生中の曲を自動検出し、サイドパネルに歌詞を自動表示・自動スクロールします。",
+  "permissions": ["sidePanel", "tabs"],
+  "host_permissions": ["*://www.youtube.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "LyricSnap を開く"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://www.youtube.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqHgER8f93QtTqBV6eW1ibZwtiq+0UZlhJ/C0K0Rp3/WIlj/MhGQxwH+9G90hOQh1eXPPuni672Yv9ViQx8E8BfBmpICoW4tPYwxap0icL0mV89ln9V0G3NoQUhLlWbrxNmEk/TCtHxiTavd4IJNOv702GW3U8rOJH+xFyQ4cOSK38whBQHtrz340sey0+RWRwCmV6igSDFI+McK22zps/wEqa0mIM7KVt/GV7lKamFRBYN3KIoHE9CM77P+zF1iMq11S4Y626do/7jAFaaaJtLsa+QxFzXHQwjPZcnSYGf15mkm+D4GuRuXlIvREKmQnGvzXdeRz41nfOshuMMFBHQIDAQAB"
+}

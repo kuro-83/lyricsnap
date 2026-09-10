@@ -193,9 +193,15 @@ export function displayLyrics(song, meta = {}) {
   if (artistName) artistName.textContent = artist;
 
   if (lyricsText) {
-    lyricsText.innerHTML = convertRuby(song.lyrics || '');
+    if (Array.isArray(song.synced) && song.synced.length) {
+      renderSyncedLyrics(lyricsText, song.synced);
+    } else {
+      lyricsText.classList.remove('synced');
+      lyricsText.innerHTML = convertRuby(song.lyrics || '');
+    }
     lyricsText.style.fontSize = `${currentFontSize}px`;
   }
+  activeSyncedIndex = -1;
 
   if (badge) {
     const labels = { lrclib: 'LRCLIB', lyricsovh: 'lyrics.ovh', manual: '手動入力' };
@@ -219,6 +225,72 @@ export function displayLyrics(song, meta = {}) {
 
   closeSongEdit();
   updateFontSizeButtons();
+}
+
+// ================================================
+// 時間同期歌詞（syncedLyrics）
+// ================================================
+let activeSyncedIndex = -1;
+
+function renderSyncedLyrics(container, synced) {
+  container.classList.add('synced');
+  container.innerHTML = synced
+    .map(
+      (line) =>
+        `<span class="lyric-line" data-t="${line.seconds}">${
+          convertRuby(line.text) || '&nbsp;'
+        }</span>`
+    )
+    .join('');
+}
+
+/**
+ * 再生位置に対応する行をハイライトして自動スクロールする
+ * @param {number} currentTime 秒
+ */
+export function highlightSyncedLine(currentTime) {
+  const container = $('lyrics-text');
+  if (!container || !container.classList.contains('synced')) return;
+  const lines = container.querySelectorAll('.lyric-line');
+  if (!lines.length) return;
+
+  // currentTime 以下で最大の data-t を持つ行
+  let idx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (parseFloat(lines[i].dataset.t) <= currentTime + 0.15) idx = i;
+    else break;
+  }
+  if (idx === activeSyncedIndex) return;
+  activeSyncedIndex = idx;
+
+  lines.forEach((el, i) => {
+    el.classList.toggle('active', i === idx);
+    el.classList.toggle('passed', i < idx);
+  });
+
+  if (idx >= 0) {
+    const el = lines[idx];
+    const box = $('lyrics-content');
+    if (box) {
+      const top = el.offsetTop - box.clientHeight / 2 + el.clientHeight / 2;
+      box.scrollTo({ top, behavior: 'smooth' });
+    }
+  }
+}
+
+// ================================================
+// 自動モードのバナー
+// ================================================
+export function showAutoBanner(text) {
+  const banner = $('auto-banner');
+  const label = $('auto-banner-title');
+  if (label) label.textContent = text || '自動検出中…';
+  if (banner) banner.hidden = false;
+}
+
+export function hideAutoBanner() {
+  const banner = $('auto-banner');
+  if (banner) banner.hidden = true;
 }
 
 // ================================================
