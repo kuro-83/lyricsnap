@@ -77,7 +77,12 @@ export async function signInWithGoogle() {
   const redirectTo = window.location.origin + window.location.pathname;
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo },
+    options: {
+      redirectTo,
+      // ブラウザに既にサインイン済みの Google アカウントがあっても
+      // 毎回アカウント選択画面を出す（YouTube 用など別アカウントを避けるため）
+      queryParams: { prompt: 'select_account' },
+    },
   });
   if (error) throw error;
 }

@@ -3,7 +3,7 @@
 // PWAオフラインキャッシュ戦略
 // ================================================
 
-const CACHE_NAME = 'lyricsnap-v4';
+const CACHE_NAME = 'lyricsnap-v5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
